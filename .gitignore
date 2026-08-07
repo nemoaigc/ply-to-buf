@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+.vite/
+coverage/
+reference/
+web/dist/
+*.buf
+!test/fixtures/**
+.env
+.idea/
+.vscode/

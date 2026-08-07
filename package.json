@@ -1,0 +1,61 @@
+{
+  "name": "ply-to-buf",
+  "version": "1.0.0",
+  "description": "Offline Lusion-compatible PLY → .buf converter (drop-in replacement for ply2buf.lusion.co)",
+  "type": "module",
+  "license": "MIT",
+  "author": "nemoaigc",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nemoaigc/ply-to-buf.git"
+  },
+  "keywords": [
+    "ply",
+    "buf",
+    "lusion",
+    "three.js",
+    "webgl",
+    "mesh",
+    "converter"
+  ],
+  "bin": {
+    "ply-to-buf": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "vite --config web/vite.config.ts",
+    "cli": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsup": "^8.4.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.2",
+    "vitest": "^3.0.9"
+  }
+}

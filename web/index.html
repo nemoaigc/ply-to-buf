@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PLY → Buffer</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <p class="eyebrow">ply-to-buf v1</p>
+        <h1>PLY → Buffer</h1>
+        <p class="lede">
+          Offline drop-in for <a href="https://ply2buf.lusion.co/">ply2buf.lusion.co</a>.
+          Same wire format. Nothing leaves this machine.
+        </p>
+      </header>
+
+      <section class="toolbar">
+        <label>
+          Preset
+          <select id="preset">
+            <option value="lusion">Lusion defaults (pos Int16 pack)</option>
+            <option value="everswap">EverSwap mountains (pos Float32)</option>
+          </select>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="sort" checked />
+          Sort by byte size
+        </label>
+      </section>
+
+      <section class="drop" id="drop">
+        <input type="file" id="file" accept=".ply" multiple hidden />
+        <p>Drop one or more <code>.ply</code> files — or <button type="button" id="browse">browse</button></p>
+        <p class="file-name" id="fileName"></p>
+      </section>
+
+      <section class="panel" id="panel" hidden>
+        <h2>Components</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>save</th>
+                <th>source</th>
+                <th>→ id</th>
+                <th>idx</th>
+                <th>pack</th>
+                <th>storage</th>
+                <th>from</th>
+                <th>to</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+
+        <div class="actions">
+          <label>
+            Mesh type
+            <select id="meshType">
+              <option value="auto">auto</option>
+              <option value="Mesh">Mesh</option>
+              <option value="Points">Points</option>
+              <option value="LineSegments">LineSegments</option>
+            </select>
+          </label>
+          <button type="button" id="export" class="primary">Export .buf</button>
+          <button type="button" id="schematic">Copy schematic</button>
+        </div>
+        <pre id="log" class="log"></pre>
+      </section>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
