@@ -13,7 +13,7 @@ Last audited against the hosted tool’s client bundle (v1.0.0).
 - Per-component storage type + needsPack + pack-from/pack-to
 - Encode: `(v-from)/delta` → `mix(typedMin,typedMax,t)` with **no clamp**; TypedArray truncate
 - Force `needsPack=false` when storage is 4 bytes
-- Attribute order: byte size ↓ then id ↓
+- Attribute order: byte size ↓ then id ↑ (localeCompare ascending)
 - Bounding box / sphere from position
 - Multi-file ZIP export (web)
 - Schematic Three.js loader codegen
