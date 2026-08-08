@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { decodeBuf, plyToBuf, parsePly, plyToComponents, encodeComponents } from '../src/index'
+import { decodeBuf, plyToBuf, parsePly, plyToComponents, encodeComponents, bufToPly } from '../src/index'
 
 const fixturesDir = fileURLToPath(new URL('./fixtures/', import.meta.url))
 
@@ -78,5 +78,31 @@ describe('exclude / needsSave', () => {
     })
     const { meta } = decodeBuf(out)
     expect(meta.attributes.find((a) => a.id === 'normal')).toBeUndefined()
+  })
+})
+
+describe('buf → ply', () => {
+  it('roundtrips mesh topology through PLY', () => {
+    const buf = plyToBuf(ab(fixture('triangle.ply')), { preset: 'everswap' })
+    const { ply, meta } = bufToPly(buf, { unpackMode: 'everswap' })
+    expect(meta.vertexCount).toBe(3)
+    expect(meta.indexCount).toBe(3)
+
+    const again = parsePly(ply)
+    expect(again.vertexCount).toBe(3)
+    expect(again.indices).toEqual([0, 1, 2])
+    expect(again.properties.x![0]).toBe(0)
+    expect(again.properties.x![1]).toBe(1)
+    expect(again.meshTypeHint).toBe('Mesh')
+  })
+
+  it('writes custom attrs from mountainish-style packing', () => {
+    const buf = plyToBuf(ab(fixture('mountainish.ply')), { preset: 'everswap' })
+    const { ply } = bufToPly(buf)
+    const text = new TextDecoder().decode(ply)
+    expect(text).toContain('property float x')
+    expect(text).toContain('property float nx')
+    expect(text).toContain('property float s')
+    expect(text).toContain('element face')
   })
 })

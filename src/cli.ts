@@ -4,35 +4,42 @@
  *
  *   ply-to-buf mesh.ply -o mesh.buf
  *   ply-to-buf mesh.ply -o mesh.buf --preset everswap --validate
+ *   ply-to-buf --to-ply file.buf -o file.ply
  *   ply-to-buf --roundtrip file.buf
  *   ply-to-buf mesh.ply --schematic > loader.js
  */
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs'
+import { dirname, resolve, extname, join } from 'node:path'
 import { decodeBuf, generateSchematicCode } from './decode'
 import { encodeComponents } from './encode'
 import { plyToBuf } from './convert'
 import { parsePly } from './ply/parse'
+import { bufToPly } from './ply/write'
 import { plyToComponents } from './remap'
 import type { ComponentSpec, ConvertOptions, UnpackMode } from './types'
 
 function usage() {
   console.log(`Usage:
   ply-to-buf <input.ply> -o <output.buf> [options]
+  ply-to-buf --to-ply <input.buf> -o <output.ply> [--binary]
+  ply-to-buf --to-ply <dir-of-bufs> -o <out-dir> [--binary]
   ply-to-buf --roundtrip <file.buf>
   ply-to-buf <input.ply> --schematic [--everswap-unpack]
 
 Options:
-  -o, --out PATH          Output .buf path
+  -o, --out PATH            Output path
+  --to-ply PATH             Reverse: .buf → .ply (file or directory)
+  --binary                  Write binary_little_endian PLY (default ascii)
+  --no-custom               Drop non-standard attrs (keep pos/normal/uv/color)
   --preset lusion|everswap  Default packing (default: lusion)
-  --float id,id           Force Float32 / no pack for attribute ids
-  --exclude id,id         Drop attributes from export
-  --mesh-type TYPE        Mesh | Points | LineSegments
-  --validate              Print max |error| vs source (everswap unpack)
-  --schematic             Print Three.js loader snippet to stdout
-  --everswap-unpack       Schematic / validate use /size (EverSwap runtime)
-  --no-sort               Keep attribute order (default: Lusion byte-size sort)
-  --roundtrip PATH        Decode→re-encode an existing .buf
+  --float id,id             Force Float32 / no pack for attribute ids
+  --exclude id,id           Drop attributes from export
+  --mesh-type TYPE          Mesh | Points | LineSegments
+  --validate                Print max |error| vs source (everswap unpack)
+  --schematic               Print Three.js loader snippet to stdout
+  --everswap-unpack         Use /size unpack (EverSwap runtime)
+  --no-sort                 Keep attribute order
+  --roundtrip PATH          Decode→re-encode an existing .buf
   -h, --help
 `)
 }
@@ -50,6 +57,9 @@ function parseArgs(argv: string[]) {
     everswapUnpack: false,
     noSort: false,
     roundtrip: '',
+    toPly: '',
+    binary: false,
+    noCustom: false,
   }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!
@@ -65,6 +75,9 @@ function parseArgs(argv: string[]) {
     else if (a === '--everswap-unpack') args.everswapUnpack = true
     else if (a === '--no-sort') args.noSort = true
     else if (a === '--roundtrip') args.roundtrip = argv[++i]!
+    else if (a === '--to-ply') args.toPly = argv[++i]!
+    else if (a === '--binary') args.binary = true
+    else if (a === '--no-custom') args.noCustom = true
     else if (a === '--help' || a === '-h') {
       usage()
       process.exit(0)
@@ -144,15 +157,67 @@ function roundtripBuf(path: string, unpackMode: UnpackMode) {
   }
 }
 
+function exportOneBufToPly(
+  inPath: string,
+  outPath: string,
+  opts: { binary: boolean; noCustom: boolean; unpackMode: UnpackMode },
+) {
+  const file = readFileSync(inPath)
+  const ab = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength)
+  const { ply, meta } = bufToPly(ab, {
+    format: opts.binary ? 'binary_little_endian' : 'ascii',
+    unpackMode: opts.unpackMode,
+    includeCustom: !opts.noCustom,
+  })
+  mkdirSync(dirname(outPath), { recursive: true })
+  writeFileSync(outPath, Buffer.from(ply))
+  console.log(
+    `Wrote ${outPath}  (${meta.meshType} v=${meta.vertexCount} i=${meta.indexCount} attrs=${meta.attributes.map((a) => a.id).join(',')})`,
+  )
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2))
-  const unpackMode: UnpackMode = args.everswapUnpack ? 'everswap' : 'schematic'
+  const unpackMode: UnpackMode = args.everswapUnpack ? 'everswap' : 'everswap'
 
   if (args.roundtrip) {
-    roundtripBuf(resolve(args.roundtrip), args.everswapUnpack ? 'everswap' : 'everswap')
+    roundtripBuf(resolve(args.roundtrip), unpackMode)
     return
   }
 
+  if (args.toPly) {
+    const src = resolve(args.toPly)
+    const st = statSync(src)
+    if (st.isDirectory()) {
+      const outDir = resolve(args.out || join(src, 'ply'))
+      mkdirSync(outDir, { recursive: true })
+      const files = readdirSync(src).filter((f) => f.toLowerCase().endsWith('.buf'))
+      if (!files.length) {
+        console.error(`No .buf files in ${src}`)
+        process.exit(1)
+      }
+      for (const f of files) {
+        exportOneBufToPly(join(src, f), join(outDir, f.replace(/\.buf$/i, '.ply')), {
+          binary: args.binary,
+          noCustom: args.noCustom,
+          unpackMode,
+        })
+      }
+      console.log(`Done: ${files.length} files → ${outDir}`)
+      return
+    }
+    const outPath = resolve(
+      args.out || src.replace(/\.buf$/i, '.ply'),
+    )
+    exportOneBufToPly(src, outPath, {
+      binary: args.binary,
+      noCustom: args.noCustom,
+      unpackMode,
+    })
+    return
+  }
+
+  // Auto-detect: input.buf without --to-ply → treat as reverse if -o ends with .ply
   const input = args._[0]
   if (!input) {
     usage()
@@ -160,6 +225,16 @@ function main() {
   }
 
   const inPath = resolve(input)
+  if (extname(inPath).toLowerCase() === '.buf') {
+    const outPath = resolve(args.out || inPath.replace(/\.buf$/i, '.ply'))
+    exportOneBufToPly(inPath, outPath, {
+      binary: args.binary,
+      noCustom: args.noCustom,
+      unpackMode,
+    })
+    return
+  }
+
   const plyBytes = readFileSync(inPath)
   const plyAb = plyBytes.buffer.slice(
     plyBytes.byteOffset,
@@ -176,11 +251,11 @@ function main() {
 
   if (args.schematic) {
     const out = plyToBuf(plyAb, convertOpts)
-    const { meta } = decodeBuf(out, unpackMode)
+    const { meta } = decodeBuf(out, args.everswapUnpack ? 'everswap' : 'schematic')
     console.log(
       generateSchematicCode(meta, {
         includeSceneScript: true,
-        unpackMode,
+        unpackMode: args.everswapUnpack ? 'everswap' : 'schematic',
       }),
     )
     return
