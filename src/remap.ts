@@ -223,17 +223,17 @@ export function plyToComponents(
     components.push(spec)
   }
 
-  // indices
+  // indices — Lusion picks Int/Uint by value range (small meshes often Uint8)
   if (mesh.indices.length) {
     const data = Float32Array.from(mesh.indices)
-    const { max } = minMax(data)
+    const { min, max } = minMax(data)
     components.push({
       sourceId: 'indices',
       data,
       saveToId: 'indices',
       saveToIndex: 0,
       needsSave: !exclude.has('indices'),
-      storageType: max > 65535 ? 'Uint32Array' : 'Uint16Array',
+      storageType: pickIntegerStorage(min, max),
       needsPack: false,
     })
   }

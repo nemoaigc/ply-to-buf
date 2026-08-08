@@ -38,8 +38,8 @@ describe('plyToBuf presets', () => {
     expect(pos.storageType).toBe('Int16Array')
     expect(pos.needsPack).toBe(true)
     const order = meta.attributes.map((a) => a.id)
-    // byte-size desc, then id asc: indices/position/uv (2) before normal (1)
-    expect(order).toEqual(['indices', 'position', 'uv', 'normal'])
+    // byte-size desc, then id asc: Int16 (pos/uv) before Uint8 (indices) before Int8 (normal)
+    expect(order).toEqual(['position', 'uv', 'indices', 'normal'])
   })
 
   it('everswap preset keeps position Float32', () => {
